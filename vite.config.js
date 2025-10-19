@@ -6,6 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    // Allow all hosts for sandbox environment
+    allowedHosts: [
+      '.sandbox.novita.ai',
+      'localhost',
+      '127.0.0.1'
+    ]
   }
 })
