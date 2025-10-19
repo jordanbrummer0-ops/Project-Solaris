@@ -1,75 +1,159 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// Demo users for testing
+const DEMO_USERS = [
+  {
+    id: '1',
+    email: 'admin@example.com',
+    password: 'admin123',
+    name: 'Admin User',
+    role: 'admin',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin',
+  },
+  {
+    id: '2',
+    email: 'user@example.com',
+    password: 'user123',
+    name: 'John Doe',
+    role: 'user',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
+  },
+  {
+    id: '3',
+    email: 'demo@example.com',
+    password: 'demo123',
+    name: 'Demo User',
+    role: 'user',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Demo',
+  },
+];
+
 const useAuthStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
-      userRole: null, // 'client' or 'subcontractor'
-      
-      login: (userData) => set({ 
-        user: userData, 
-        isAuthenticated: true,
-        userRole: userData.role 
-      }),
-      
-      logout: () => set({ 
-        user: null, 
-        isAuthenticated: false,
-        userRole: null 
-      }),
-      
-      updateUser: (userData) => set((state) => ({
-        user: { ...state.user, ...userData }
-      })),
+      isLoading: false,
+      error: null,
 
-      // Check if user has specific permission
-      hasPermission: (permission) => {
-        const { userRole } = useAuthStore.getState();
-        const permissions = {
-          client: [
-            'approve_inspection',
-            'reject_inspection',
-            'manage_users',
-            'edit_schedule',
-            'assign_tasks',
-            'change_due_dates',
-            'move_to_approved',
-            'move_to_rework'
-          ],
-          subcontractor: [
-            'accept_task',
-            'mark_work_done',
-            'request_inspection',
-            'note_delay',
-            'view_schedule'
-          ]
-        };
+      // Login function
+      login: async (email, password) => {
+        set({ isLoading: true, error: null });
         
-        return permissions[userRole]?.includes(permission) || false;
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Find user in demo users
+        const user = DEMO_USERS.find(
+          u => u.email === email && u.password === password
+        );
+        
+        if (user) {
+          const { password: _, ...userWithoutPassword } = user;
+          set({
+            user: userWithoutPassword,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+          return { success: true, user: userWithoutPassword };
+        } else {
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: 'Invalid email or password',
+          });
+          return { success: false, error: 'Invalid email or password' };
+        }
       },
 
-      // Check if user can interact with a specific task
-      canInteractWithTask: (task) => {
-        const { user, userRole } = useAuthStore.getState();
+      // Signup function
+      signup: async (email, password, name) => {
+        set({ isLoading: true, error: null });
         
-        if (userRole === 'client') {
-          return true; // Clients can interact with all tasks
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Check if user already exists
+        const existingUser = DEMO_USERS.find(u => u.email === email);
+        
+        if (existingUser) {
+          set({
+            isLoading: false,
+            error: 'User with this email already exists',
+          });
+          return { success: false, error: 'User with this email already exists' };
         }
         
-        if (userRole === 'subcontractor') {
-          // Subcontractors can only interact with tasks assigned to them
-          return task.assignedTo === user?.id || task.assignedTo === user?.company;
-        }
+        // Create new user
+        const newUser = {
+          id: Date.now().toString(),
+          email,
+          name,
+          role: 'user',
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+        };
         
-        return false;
-      }
+        // Add to demo users (in real app, this would be saved to backend)
+        DEMO_USERS.push({ ...newUser, password });
+        
+        set({
+          user: newUser,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+        
+        return { success: true, user: newUser };
+      },
+
+      // Logout function
+      logout: () => {
+        set({
+          user: null,
+          isAuthenticated: false,
+          error: null,
+        });
+      },
+
+      // Update user profile
+      updateProfile: async (updates) => {
+        set({ isLoading: true });
+        
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const currentUser = get().user;
+        const updatedUser = { ...currentUser, ...updates };
+        
+        set({
+          user: updatedUser,
+          isLoading: false,
+        });
+        
+        return { success: true, user: updatedUser };
+      },
+
+      // Clear error
+      clearError: () => set({ error: null }),
     }),
     {
-      name: 'auth-storage'
+      name: 'auth-storage',
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
   )
 );
 
 export default useAuthStore;
+
+// Export demo credentials for easy reference
+export const DEMO_CREDENTIALS = [
+  { email: 'admin@example.com', password: 'admin123', role: 'Admin' },
+  { email: 'user@example.com', password: 'user123', role: 'User' },
+  { email: 'demo@example.com', password: 'demo123', role: 'Demo' },
+];

@@ -1,32 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Mail, Lock, LogIn, AlertCircle, User } from 'lucide-react';
-import useAuthStore, { DEMO_CREDENTIALS } from '../store/authStore';
+import { Eye, EyeOff, Mail, Lock, User, UserPlus, CheckCircle } from 'lucide-react';
+import useAuthStore from '../store/authStore';
 import { toast } from '../components/Toaster';
 
-const LoginPage = () => {
+const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [showDemoCredentials, setShowDemoCredentials] = useState(true);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
-  
-  const from = location.state?.from?.pathname || '/dashboard';
+  const { signup, isLoading, error, clearError, isAuthenticated } = useAuthStore();
 
   const {
     register,
     handleSubmit,
-    setValue,
+    watch,
     formState: { errors }
   } = useForm();
 
+  const password = watch('password');
+
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(from, { replace: true });
+      navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     if (error) {
@@ -36,22 +36,28 @@ const LoginPage = () => {
   }, [error, clearError]);
 
   const onSubmit = async (data) => {
-    const result = await login(data.email, data.password);
+    if (!agreedToTerms) {
+      toast.error('Please agree to the terms and conditions');
+      return;
+    }
+
+    const result = await signup(data.email, data.password, data.name);
     
     if (result.success) {
-      toast.success(`Welcome back, ${result.user.name}!`);
-      navigate(from, { replace: true });
+      toast.success(`Welcome to AI Scale Pro, ${result.user.name}!`);
+      navigate('/dashboard', { replace: true });
     }
   };
 
-  const fillDemoCredentials = (email, password) => {
-    setValue('email', email);
-    setValue('password', password);
-    toast.info('Demo credentials filled. Click "Sign In" to continue.');
-  };
+  const passwordRequirements = [
+    { regex: /.{6,}/, text: 'At least 6 characters' },
+    { regex: /[A-Z]/, text: 'One uppercase letter' },
+    { regex: /[a-z]/, text: 'One lowercase letter' },
+    { regex: /[0-9]/, text: 'One number' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -62,56 +68,41 @@ const LoginPage = () => {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full mb-4">
-              <LogIn className="w-8 h-8 text-primary-600" />
+              <UserPlus className="w-8 h-8 text-primary-600" />
             </div>
-            <h2 className="text-3xl font-bold mb-2">Welcome Back</h2>
+            <h2 className="text-3xl font-bold mb-2">Create Account</h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Sign in to your account to continue
+              Join us to start building amazing applications
             </p>
           </div>
 
-          {/* Demo Credentials Card */}
-          {showDemoCredentials && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6"
-            >
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                    Demo Credentials Available
-                  </p>
-                  <div className="space-y-1">
-                    {DEMO_CREDENTIALS.map((cred, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => fillDemoCredentials(cred.email, cred.password)}
-                        className="block w-full text-left text-xs bg-white dark:bg-gray-700 rounded px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        <span className="font-medium">{cred.role}:</span>{' '}
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {cred.email} / {cred.password}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowDemoCredentials(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ×
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Login Form */}
+          {/* Signup Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Name Field */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                  placeholder="Enter your full name"
+                  {...register('name', {
+                    required: 'Name is required',
+                    minLength: {
+                      value: 2,
+                      message: 'Name must be at least 2 characters',
+                    },
+                  })}
+                />
+              </div>
+              {errors.name && (
+                <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+              )}
+            </div>
+
             {/* Email Field */}
             <div>
               <label className="block text-sm font-medium mb-2">
@@ -147,12 +138,16 @@ const LoginPage = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
-                  placeholder="Enter your password"
+                  placeholder="Create a password"
                   {...register('password', {
                     required: 'Password is required',
                     minLength: {
                       value: 6,
                       message: 'Password must be at least 6 characters',
+                    },
+                    pattern: {
+                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/,
+                      message: 'Password must contain uppercase, lowercase, and number',
                     },
                   })}
                 />
@@ -171,42 +166,98 @@ const LoginPage = () => {
               {errors.password && (
                 <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
               )}
+
+              {/* Password Requirements */}
+              {password && (
+                <div className="mt-3 space-y-1">
+                  {passwordRequirements.map((req, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-center gap-2 text-sm ${
+                        req.regex.test(password)
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-gray-400'
+                      }`}
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>{req.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                />
-                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                  Remember me
-                </span>
+            {/* Confirm Password Field */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Confirm Password
               </label>
-              <Link
-                to="/forgot-password"
-                className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400"
-              >
-                Forgot password?
-              </Link>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                  placeholder="Confirm your password"
+                  {...register('confirmPassword', {
+                    required: 'Please confirm your password',
+                    validate: value =>
+                      value === password || 'Passwords do not match',
+                  })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
+            </div>
+
+            {/* Terms and Conditions */}
+            <div className="flex items-start">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="w-4 h-4 mt-0.5 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                I agree to the{' '}
+                <Link to="/terms" className="text-primary-600 hover:underline">
+                  Terms and Conditions
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy" className="text-primary-600 hover:underline">
+                  Privacy Policy
+                </Link>
+              </label>
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !agreedToTerms}
               className="w-full py-3 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
                 <>
-                  <LogIn className="w-5 h-5" />
-                  Sign In
+                  <UserPlus className="w-5 h-5" />
+                  Create Account
                 </>
               )}
             </button>
@@ -218,12 +269,12 @@ const LoginPage = () => {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
-                  Or continue with
+                  Or sign up with
                 </span>
               </div>
             </div>
 
-            {/* Social Login Buttons */}
+            {/* Social Signup Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -261,14 +312,14 @@ const LoginPage = () => {
             </div>
           </form>
 
-          {/* Sign Up Link */}
+          {/* Sign In Link */}
           <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-            Don't have an account?{' '}
+            Already have an account?{' '}
             <Link
-              to="/signup"
+              to="/login"
               className="font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
             >
-              Sign up for free
+              Sign in
             </Link>
           </p>
         </div>
@@ -277,4 +328,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default SignupPage;

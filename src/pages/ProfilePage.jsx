@@ -1,315 +1,317 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useForm } from 'react-hook-form';
 import { 
-  User, Mail, Building, Shield, HardHat, 
-  Save, Bell, Lock, Eye, EyeOff, CheckCircle 
+  User, Mail, Shield, Camera, Save, 
+  Award, Calendar, Activity, Settings,
+  Edit2, Check, X
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import { toast } from '../components/Toaster';
 
 const ProfilePage = () => {
-  const { user, userRole, updateUser } = useAuthStore();
+  const { user, updateProfile, isLoading } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar);
   
-  const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    company: user?.company || '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-
-  const [notifications, setNotifications] = useState({
-    taskAssigned: true,
-    statusChanged: true,
-    inspectionRequested: true,
-    dailyDigest: false,
-    weeklyReport: true
-  });
-
-  const handleSaveProfile = () => {
-    // Validate passwords if changing
-    if (formData.newPassword) {
-      if (formData.newPassword !== formData.confirmPassword) {
-        toast.error('Passwords do not match');
-        return;
-      }
-      if (formData.newPassword.length < 6) {
-        toast.error('Password must be at least 6 characters');
-        return;
-      }
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm({
+    defaultValues: {
+      name: user?.name,
+      email: user?.email,
+      bio: user?.bio || '',
+      location: user?.location || '',
+      website: user?.website || '',
     }
+  });
 
-    // Update user data
-    updateUser({
-      name: formData.name,
-      email: formData.email,
-      company: formData.company
+  const stats = [
+    { label: 'Member Since', value: 'Jan 2024', icon: Calendar },
+    { label: 'Projects', value: '12', icon: Activity },
+    { label: 'Achievements', value: '8', icon: Award },
+    { label: 'Team Members', value: '5', icon: User },
+  ];
+
+  const achievements = [
+    { name: 'Early Adopter', description: 'Joined in the first month', icon: '🎯' },
+    { name: 'Project Creator', description: 'Created 10+ projects', icon: '🚀' },
+    { name: 'Team Player', description: 'Collaborated with 5+ people', icon: '🤝' },
+    { name: 'Bug Hunter', description: 'Reported 3 bugs', icon: '🐛' },
+  ];
+
+  const onSubmit = async (data) => {
+    const result = await updateProfile(data);
+    if (result.success) {
+      toast.success('Profile updated successfully!');
+      setIsEditing(false);
+    } else {
+      toast.error('Failed to update profile');
+    }
+  };
+
+  const handleCancel = () => {
+    reset({
+      name: user?.name,
+      email: user?.email,
+      bio: user?.bio || '',
+      location: user?.location || '',
+      website: user?.website || '',
     });
-
-    // Clear password fields
-    setFormData({
-      ...formData,
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
-
     setIsEditing(false);
-    toast.success('Profile updated successfully');
   };
 
-  const handleNotificationChange = (key) => {
-    setNotifications({
-      ...notifications,
-      [key]: !notifications[key]
-    });
-    toast.success('Notification preferences updated');
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
-
-  const getRoleIcon = () => {
-    return userRole === 'client' ? Shield : HardHat;
-  };
-
-  const getRoleBadgeColor = () => {
-    return userRole === 'client' 
-      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-      : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400';
-  };
-
-  const RoleIcon = getRoleIcon();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="section-padding py-8">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold mb-2">Profile Settings</h1>
+          <h1 className="text-3xl font-bold mb-2">Profile</h1>
           <p className="text-gray-600 dark:text-gray-400">
             Manage your account settings and preferences
           </p>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Profile Summary Card */}
+          {/* Profile Card */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
             className="lg:col-span-1"
           >
             <div className="card text-center">
-              <div className="w-24 h-24 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl font-bold text-primary-600">
-                  {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+              <div className="relative inline-block mb-4">
+                <img
+                  src={avatarPreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name}`}
+                  alt={user?.name}
+                  className="w-32 h-32 rounded-full mx-auto bg-gray-200 dark:bg-gray-700"
+                />
+                {isEditing && (
+                  <label className="absolute bottom-0 right-0 p-2 bg-primary-600 text-white rounded-full cursor-pointer hover:bg-primary-700 transition-colors">
+                    <Camera className="w-4 h-4" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarChange}
+                    />
+                  </label>
+                )}
+              </div>
+              
+              <h2 className="text-2xl font-bold mb-1">{user?.name}</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">{user?.email}</p>
+              
+              {user?.role && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-full text-sm font-medium mb-4">
+                  <Shield className="w-4 h-4" />
+                  {user.role}
                 </span>
-              </div>
+              )}
               
-              <h2 className="text-xl font-semibold mb-2">{user?.name}</h2>
-              
-              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor()} mb-4`}>
-                <RoleIcon className="w-4 h-4" />
-                {userRole === 'client' ? 'Client' : 'Subcontractor'}
-              </span>
-              
-              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <div className="flex items-center justify-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  <span>{user?.email}</span>
-                </div>
-                <div className="flex items-center justify-center gap-2">
-                  <Building className="w-4 h-4" />
-                  <span>{user?.company}</span>
-                </div>
-              </div>
-              
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="font-medium">Account Verified</span>
-                </div>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="w-full btn-primary flex items-center justify-center gap-2"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit Profile
+                </button>
+              )}
+            </div>
+
+            {/* Stats */}
+            <div className="card mt-6">
+              <h3 className="font-semibold mb-4">Statistics</h3>
+              <div className="space-y-3">
+                {stats.map((stat, index) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-5 h-5 text-gray-400" />
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {stat.label}
+                        </span>
+                      </div>
+                      <span className="font-semibold">{stat.value}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </motion.div>
 
-          {/* Profile Edit Form */}
+          {/* Profile Form */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="lg:col-span-2 space-y-6"
+            className="lg:col-span-2"
           >
-            {/* Personal Information */}
             <div className="card">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <User className="w-5 h-5 text-primary-600" />
-                  Personal Information
-                </h3>
-                {!isEditing ? (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="text-primary-600 hover:text-primary-700 font-medium text-sm"
-                  >
-                    Edit
-                  </button>
-                ) : (
+                <h3 className="text-lg font-semibold">Profile Information</h3>
+                {isEditing && (
                   <div className="flex gap-2">
                     <button
-                      onClick={handleSaveProfile}
-                      className="flex items-center gap-1 px-3 py-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
+                      onClick={handleCancel}
+                      className="p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
-                      <Save className="w-4 h-4" />
-                      Save
+                      <X className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => {
-                        setIsEditing(false);
-                        setFormData({
-                          ...formData,
-                          name: user?.name || '',
-                          email: user?.email || '',
-                          company: user?.company || ''
-                        });
-                      }}
-                      className="px-3 py-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-sm"
+                      onClick={handleSubmit(onSubmit)}
+                      disabled={isLoading}
+                      className="p-2 bg-primary-600 text-white hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
                     >
-                      Cancel
+                      {isLoading ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Check className="w-5 h-5" />
+                      )}
                     </button>
                   </div>
                 )}
               </div>
-              
-              <div className="space-y-4">
+
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      disabled={!isEditing}
+                      className="input-field disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                      {...register('name', { required: 'Name is required' })}
+                    />
+                    {errors.name && (
+                      <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      disabled={!isEditing}
+                      className="input-field disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                      {...register('email', {
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Invalid email address',
+                        },
+                      })}
+                    />
+                    {errors.email && (
+                      <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                    )}
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  <label className="block text-sm font-medium mb-2">
+                    Bio
+                  </label>
+                  <textarea
+                    rows={3}
                     disabled={!isEditing}
-                    className="input-field disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed"
+                    className="input-field disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:cursor-not-allowed resize-none"
+                    placeholder="Tell us about yourself..."
+                    {...register('bio')}
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Email Address</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    disabled={!isEditing}
-                    className="input-field disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      disabled={!isEditing}
+                      className="input-field disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                      placeholder="San Francisco, CA"
+                      {...register('location')}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Website
+                    </label>
+                    <input
+                      type="url"
+                      disabled={!isEditing}
+                      className="input-field disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                      placeholder="https://example.com"
+                      {...register('website')}
+                    />
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Company</label>
-                  <input
-                    type="text"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    disabled={!isEditing}
-                    className="input-field disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed"
-                  />
-                </div>
+              </form>
+            </div>
+
+            {/* Achievements */}
+            <div className="card mt-6">
+              <h3 className="text-lg font-semibold mb-6">Achievements</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {achievements.map((achievement, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                  >
+                    <span className="text-2xl">{achievement.icon}</span>
+                    <div>
+                      <p className="font-medium">{achievement.name}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {achievement.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             </div>
 
-            {/* Change Password */}
-            {isEditing && (
-              <div className="card">
-                <h3 className="text-lg font-semibold flex items-center gap-2 mb-6">
-                  <Lock className="w-5 h-5 text-primary-600" />
-                  Change Password
-                </h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Current Password</label>
-                    <input
-                      type="password"
-                      value={formData.currentPassword}
-                      onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
-                      className="input-field"
-                      placeholder="Enter current password"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">New Password</label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={formData.newPassword}
-                        onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                        className="input-field pr-10"
-                        placeholder="Enter new password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                      >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Confirm New Password</label>
-                    <input
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className="input-field"
-                      placeholder="Confirm new password"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Notification Preferences */}
-            <div className="card">
-              <h3 className="text-lg font-semibold flex items-center gap-2 mb-6">
-                <Bell className="w-5 h-5 text-primary-600" />
-                Notification Preferences
+            {/* Danger Zone */}
+            <div className="card mt-6 border-red-200 dark:border-red-800">
+              <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4">
+                Danger Zone
               </h3>
-              
-              <div className="space-y-4">
-                {Object.entries({
-                  taskAssigned: 'Email me when a task is assigned to me',
-                  statusChanged: 'Email me when task status changes',
-                  inspectionRequested: 'Email me when inspection is requested',
-                  dailyDigest: 'Send daily project digest',
-                  weeklyReport: 'Send weekly performance report'
-                }).map(([key, label]) => (
-                  <label key={key} className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm">{label}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleNotificationChange(key)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        notifications[key] ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          notifications[key] ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </label>
-                ))}
-              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Once you delete your account, there is no going back. Please be certain.
+              </p>
+              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                Delete Account
+              </button>
             </div>
           </motion.div>
         </div>

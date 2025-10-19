@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Menu, X, Moon, Sun, Shield, LogOut, 
-  LayoutDashboard, Kanban, Calendar, BarChart3, Users, User
-} from 'lucide-react';
+import { Menu, X, Moon, Sun, Zap, User, LogOut, Settings, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../store/authStore';
 import { toast } from './Toaster';
@@ -11,14 +8,21 @@ import { toast } from './Toaster';
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, userRole, logout } = useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
 
   useEffect(() => {
     // Check initial theme
     setIsDark(document.documentElement.classList.contains('dark'));
   }, []);
+
+  useEffect(() => {
+    // Close mobile menu on route change
+    setIsOpen(false);
+    setShowUserMenu(false);
+  }, [location]);
 
   const toggleTheme = () => {
     if (isDark) {
@@ -35,85 +39,130 @@ const Navbar = () => {
   const handleLogout = () => {
     logout();
     toast.success('Logged out successfully');
-    navigate('/login');
+    navigate('/');
   };
 
   const navLinks = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/boards', label: 'Boards', icon: Kanban },
-    { path: '/schedule', label: 'Schedule', icon: Calendar },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/team', label: 'Team', icon: Users },
-    { path: '/profile', label: 'Profile', icon: User },
+    { path: '/', label: 'Home' },
+    ...(isAuthenticated ? [{ path: '/dashboard', label: 'Dashboard' }] : []),
+    { path: '/about', label: 'About' },
+    { path: '/contact', label: 'Contact' },
   ];
-
-  const getRoleBadgeColor = () => {
-    return userRole === 'client' 
-      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-      : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400';
-  };
 
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50">
       <div className="section-padding">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/dashboard" className="flex items-center space-x-2">
-            <Shield className="w-8 h-8 text-primary-600" />
-            <div>
-              <span className="font-bold text-xl gradient-text">Project Manager</span>
-              <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${getRoleBadgeColor()}`}>
-                {userRole?.toUpperCase()}
-              </span>
-            </div>
+          <Link to="/" className="flex items-center space-x-2">
+            <Zap className="w-8 h-8 text-primary-600" />
+            <span className="font-bold text-xl gradient-text">AI Scale Pro</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6">
-            {navLinks.map(link => {
-              const Icon = link.icon;
-              return (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`flex items-center gap-2 font-medium transition-colors duration-200 ${
-                    location.pathname === link.path
-                      ? 'text-primary-600 dark:text-primary-400'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{link.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Right side actions */}
-          <div className="hidden md:flex items-center space-x-4">
-            {/* User info */}
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{user?.company}</p>
-            </div>
+          <div className="hidden md:flex items-center space-x-8">
+            {navLinks.map(link => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`font-medium transition-colors duration-200 ${
+                  location.pathname === link.path
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
             
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
+
+            {/* User Menu or Auth Buttons */}
+            {isAuthenticated ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  <img
+                    src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name}`}
+                    alt={user?.name}
+                    className="w-8 h-8 rounded-full bg-gray-300"
+                  />
+                  <span className="font-medium text-sm">{user?.name}</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+
+                <AnimatePresence>
+                  {showUserMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2 border border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                        <p className="text-sm font-medium">{user?.name}</p>
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                        {user?.role && (
+                          <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded">
+                            {user.role}
+                          </span>
+                        )}
+                      </div>
+                      <Link
+                        to="/profile"
+                        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <User className="w-4 h-4" />
+                        Profile
+                      </Link>
+                      <Link
+                        to="/settings"
+                        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <Settings className="w-4 h-4" />
+                        Settings
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 px-4 py-2 w-full text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-red-600 dark:text-red-400"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/login"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors font-medium"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/signup"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center space-x-2">
+          <div className="md:hidden flex items-center space-x-4">
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700"
@@ -140,42 +189,75 @@ const Navbar = () => {
               className="md:hidden overflow-hidden"
             >
               <div className="py-4 space-y-2">
-                {/* User info in mobile */}
-                <div className="px-4 py-2 mb-2 border-b border-gray-200 dark:border-gray-700">
-                  <p className="font-medium text-gray-900 dark:text-white">{user?.name}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{user?.company}</p>
-                  <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${getRoleBadgeColor()}`}>
-                    {userRole?.toUpperCase()}
-                  </span>
-                </div>
+                {navLinks.map(link => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    onClick={() => setIsOpen(false)}
+                    className={`block py-2 px-4 rounded-lg font-medium transition-colors ${
+                      location.pathname === link.path
+                        ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
                 
-                {navLinks.map(link => {
-                  const Icon = link.icon;
-                  return (
+                {isAuthenticated ? (
+                  <>
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                      <div className="flex items-center gap-3 px-4 pb-3">
+                        <img
+                          src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name}`}
+                          alt={user?.name}
+                          className="w-10 h-10 rounded-full bg-gray-300"
+                        />
+                        <div>
+                          <p className="font-medium">{user?.name}</p>
+                          <p className="text-sm text-gray-500">{user?.email}</p>
+                        </div>
+                      </div>
+                      <Link
+                        to="/profile"
+                        onClick={() => setIsOpen(false)}
+                        className="block py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        Profile
+                      </Link>
+                      <Link
+                        to="/settings"
+                        onClick={() => setIsOpen(false)}
+                        className="block py-2 px-4 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        Settings
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left py-2 px-4 rounded-lg text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4 space-y-2">
                     <Link
-                      key={link.path}
-                      to={link.path}
+                      to="/login"
                       onClick={() => setIsOpen(false)}
-                      className={`flex items-center gap-3 py-2 px-4 rounded-lg font-medium transition-colors ${
-                        location.pathname === link.path
-                          ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
+                      className="block py-2 px-4 rounded-lg text-center border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
-                      <Icon className="w-5 h-5" />
-                      <span>{link.label}</span>
+                      Sign In
                     </Link>
-                  );
-                })}
-                
-                {/* Logout button in mobile */}
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 py-2 px-4 rounded-lg font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span>Logout</span>
-                </button>
+                    <Link
+                      to="/signup"
+                      onClick={() => setIsOpen(false)}
+                      className="block py-2 px-4 rounded-lg text-center bg-primary-600 text-white hover:bg-primary-700"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
