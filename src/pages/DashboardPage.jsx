@@ -1,291 +1,303 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-import {
-  TrendingUp, Users, DollarSign, Activity, Download,
-  Calendar, Filter, RefreshCw, Settings
+import { 
+  AlertCircle, Clock, CheckCircle, XCircle, 
+  TrendingUp, Calendar, Filter, AlertTriangle,
+  BarChart3, PieChart, Activity
 } from 'lucide-react';
+import { PieChart as RechartsPC, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import useProjectStore from '../store/projectStore';
+import useAuthStore from '../store/authStore';
+import FilterBar from '../components/FilterBar';
 
 const DashboardPage = () => {
-  const [timeRange, setTimeRange] = useState('week');
+  const { tasks, milestones, getProjectHealth, getFilteredTasks, filters } = useProjectStore();
+  const { user, userRole } = useAuthStore();
+  const [filteredTasks, setFilteredTasks] = useState([]);
+  const [projectHealth, setProjectHealth] = useState(null);
 
-  // Sample data for charts
-  const lineData = [
-    { name: 'Mon', users: 400, revenue: 2400 },
-    { name: 'Tue', users: 300, revenue: 1398 },
-    { name: 'Wed', users: 500, revenue: 3800 },
-    { name: 'Thu', users: 280, revenue: 3908 },
-    { name: 'Fri', users: 590, revenue: 4800 },
-    { name: 'Sat', users: 320, revenue: 3800 },
-    { name: 'Sun', users: 490, revenue: 4300 },
+  useEffect(() => {
+    // Initialize with sample data if empty
+    if (tasks.length === 0) {
+      initializeSampleData();
+    }
+    
+    setFilteredTasks(getFilteredTasks());
+    setProjectHealth(getProjectHealth());
+  }, [filters, tasks]);
+
+  const initializeSampleData = () => {
+    const sampleTasks = [
+      { id: '1', title: 'Foundation Work', status: 'work_done', assignedTo: 'BuildCo Inc', dueDate: '2024-01-15', priority: 'high' },
+      { id: '2', title: 'Structural Framing', status: 'accepted', assignedTo: 'StructurePro', dueDate: '2024-01-20', priority: 'high' },
+      { id: '3', title: 'Electrical Wiring', status: 'inspection_requested', assignedTo: 'ElectroCorp', dueDate: '2024-01-25', priority: 'medium' },
+      { id: '4', title: 'Plumbing Installation', status: 'assigned', assignedTo: 'PlumbMaster', dueDate: '2024-01-30', priority: 'medium' },
+      { id: '5', title: 'HVAC System', status: 'rework_required', assignedTo: 'AirFlow Inc', dueDate: '2024-02-05', priority: 'low', isDelayed: true },
+      { id: '6', title: 'Interior Finishing', status: 'approved', assignedTo: 'FinishPro', dueDate: '2024-02-10', priority: 'low' },
+    ];
+
+    const sampleMilestones = [
+      { id: '1', title: 'Phase 1 Completion', dueDate: '2024-01-31', status: 'upcoming' },
+      { id: '2', title: 'Site Handover', dueDate: '2024-02-28', status: 'upcoming' },
+      { id: '3', title: 'Final Inspection', dueDate: '2024-03-15', status: 'upcoming' },
+    ];
+
+    // Add sample data to store
+    const projectStore = useProjectStore.getState();
+    sampleTasks.forEach(task => projectStore.addTask(task));
+    sampleMilestones.forEach(milestone => projectStore.addMilestone(milestone));
+  };
+
+  // Task Status Configuration
+  const taskStatuses = {
+    assigned: { label: 'Assigned', color: 'bg-gray-500', icon: Clock },
+    accepted: { label: 'In Progress', color: 'bg-blue-500', icon: Activity },
+    work_done: { label: 'Work Done', color: 'bg-purple-500', icon: CheckCircle },
+    inspection_requested: { label: 'Inspection Requested', color: 'bg-yellow-500', icon: AlertCircle },
+    rework_required: { label: 'Rework Required', color: 'bg-red-500', icon: XCircle },
+    approved: { label: 'Approved', color: 'bg-green-500', icon: CheckCircle }
+  };
+
+  // Get tasks by status
+  const getTasksByStatus = () => {
+    const statusCount = {};
+    Object.keys(taskStatuses).forEach(status => {
+      statusCount[status] = filteredTasks.filter(task => task.status === status).length;
+    });
+    return statusCount;
+  };
+
+  const statusCount = getTasksByStatus();
+
+  // Prepare data for charts
+  const pieChartData = [
+    { name: 'On-Time', value: projectHealth?.onTimePercentage || 0, color: '#10b981' },
+    { name: 'Delayed', value: projectHealth?.delayedPercentage || 0, color: '#ef4444' }
   ];
 
-  const barData = [
-    { month: 'Jan', sales: 65 },
-    { month: 'Feb', sales: 59 },
-    { month: 'Mar', sales: 80 },
-    { month: 'Apr', sales: 81 },
-    { month: 'May', sales: 56 },
-    { month: 'Jun', sales: 95 },
+  const barChartData = [
+    { name: 'Pass', value: projectHealth?.inspectionPassRate || 0 },
+    { name: 'Fail', value: 100 - (projectHealth?.inspectionPassRate || 0) }
   ];
 
-  const pieData = [
-    { name: 'Desktop', value: 45, color: '#0ea5e9' },
-    { name: 'Mobile', value: 35, color: '#a855f7' },
-    { name: 'Tablet', value: 20, color: '#f59e0b' },
-  ];
-
-  const stats = [
-    {
-      title: 'Total Revenue',
-      value: '$45,231',
-      change: '+12.5%',
-      icon: DollarSign,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100 dark:bg-green-900/30',
-    },
-    {
-      title: 'Active Users',
-      value: '2,431',
-      change: '+18.2%',
-      icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
-    },
-    {
-      title: 'Conversion Rate',
-      value: '3.42%',
-      change: '+4.3%',
-      icon: TrendingUp,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100 dark:bg-purple-900/30',
-    },
-    {
-      title: 'Avg. Session',
-      value: '4m 32s',
-      change: '-2.1%',
-      icon: Activity,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100 dark:bg-orange-900/30',
-    },
-  ];
+  // Get critical tasks (inspection requested or delayed)
+  const criticalTasks = filteredTasks.filter(task => 
+    task.status === 'inspection_requested' || 
+    task.status === 'rework_required' || 
+    task.isDelayed
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Filter Bar */}
+      <FilterBar />
+
       <div className="section-padding py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Welcome back! Here's your business overview.
-            </p>
-          </motion.div>
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <h1 className="text-3xl font-bold mb-2">Project Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Welcome back, {user?.name}. Here's your project overview.
+          </p>
+        </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex gap-2"
-          >
-            <button className="px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Last 7 days</span>
-            </button>
-            <button className="px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-              <Filter className="w-4 h-4" />
-            </button>
-            <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </button>
-          </motion.div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <motion.div
-                key={stat.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="card"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                    <Icon className={`w-6 h-6 ${stat.color}`} />
-                  </div>
-                  <span className={`text-sm font-medium ${
-                    stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {stat.change}
-                  </span>
-                </div>
-                <h3 className="text-2xl font-bold mb-1">{stat.value}</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{stat.title}</p>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Line Chart */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="card"
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">Revenue & Users</h3>
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={lineData}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#0ea5e9" 
-                  strokeWidth={2}
-                  dot={{ fill: '#0ea5e9' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="users" 
-                  stroke="#a855f7" 
-                  strokeWidth={2}
-                  dot={{ fill: '#a855f7' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </motion.div>
-
-          {/* Bar Chart */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="card"
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">Monthly Sales</h3>
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="sales" fill="#a855f7" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
-        </div>
-
-        {/* Pie Chart and Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Pie Chart */}
+          {/* Widget 1: Project Task Overview */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="lg:col-span-2 card"
           >
-            <h3 className="text-lg font-semibold mb-6">Traffic Sources</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 space-y-2">
-              {pieData.map(item => (
-                <div key={item.name} className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-sm">{item.name}</span>
-                  </div>
-                  <span className="text-sm font-medium">{item.value}%</span>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">Project Task Overview</h2>
+              <span className="text-sm text-gray-500">
+                {filteredTasks.length} total tasks
+              </span>
+            </div>
+
+            {/* Critical Tasks Alert */}
+            {criticalTasks.length > 0 && (
+              <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                  <span className="font-semibold text-yellow-800 dark:text-yellow-300">
+                    {criticalTasks.length} Tasks Require Attention
+                  </span>
                 </div>
-              ))}
+                <div className="space-y-2">
+                  {criticalTasks.slice(0, 3).map(task => (
+                    <div key={task.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700 dark:text-gray-300">{task.title}</span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        taskStatuses[task.status].color
+                      } text-white`}>
+                        {taskStatuses[task.status].label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Task Status Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {Object.entries(taskStatuses).map(([status, config]) => {
+                const Icon = config.icon;
+                return (
+                  <div
+                    key={status}
+                    className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`p-2 rounded ${config.color} bg-opacity-20`}>
+                        <Icon className={`w-4 h-4 ${config.color.replace('bg-', 'text-')}`} />
+                      </div>
+                      <span className="text-2xl font-bold">{statusCount[status]}</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {config.label}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </motion.div>
 
-          {/* Recent Activity */}
+          {/* Widget 2: Upcoming Milestones */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-            className="card lg:col-span-2"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="card"
           >
-            <h3 className="text-lg font-semibold mb-6">Recent Activity</h3>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">Upcoming Milestones</h2>
+              <Calendar className="w-5 h-5 text-gray-400" />
+            </div>
+            
             <div className="space-y-4">
-              {[
-                { user: 'John Doe', action: 'Purchased Premium Plan', time: '2 hours ago' },
-                { user: 'Jane Smith', action: 'Upgraded to Pro', time: '3 hours ago' },
-                { user: 'Mike Johnson', action: 'Created new project', time: '5 hours ago' },
-                { user: 'Sarah Williams', action: 'Invited team members', time: '1 day ago' },
-                { user: 'Tom Brown', action: 'Completed onboarding', time: '2 days ago' },
-              ].map((activity, index) => (
+              {milestones.slice(0, 5).map((milestone, index) => (
                 <div 
-                  key={index} 
-                  className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700 last:border-0"
+                  key={milestone.id}
+                  className="flex items-start gap-3 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-0"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                      <Users className="w-5 h-5 text-primary-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{activity.user}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {activity.action}
-                      </p>
-                    </div>
+                  <div className={`w-2 h-2 rounded-full mt-2 ${
+                    index === 0 ? 'bg-red-500' : 'bg-gray-400'
+                  }`} />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{milestone.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {new Date(milestone.dueDate).toLocaleDateString()}
+                    </p>
                   </div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {activity.time}
-                  </span>
                 </div>
               ))}
+              
+              {milestones.length === 0 && (
+                <p className="text-gray-500 dark:text-gray-400 text-center py-4">
+                  No upcoming milestones
+                </p>
+              )}
             </div>
           </motion.div>
         </div>
+
+        {/* Widget 3: Overall Project Health */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="card mt-6"
+        >
+          <h2 className="text-xl font-semibold mb-6">Overall Project Health</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Completion Percentage */}
+            <div className="text-center">
+              <div className="relative inline-flex items-center justify-center w-32 h-32 mx-auto">
+                <svg className="transform -rotate-90 w-32 h-32">
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                    fill="none"
+                    className="text-gray-200 dark:text-gray-700"
+                  />
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                    fill="none"
+                    strokeDasharray={`${2 * Math.PI * 56}`}
+                    strokeDashoffset={`${2 * Math.PI * 56 * (1 - (projectHealth?.completionPercentage || 0) / 100)}`}
+                    className="text-primary-600 transition-all duration-500"
+                  />
+                </svg>
+                <span className="absolute text-2xl font-bold">
+                  {Math.round(projectHealth?.completionPercentage || 0)}%
+                </span>
+              </div>
+              <p className="mt-4 font-medium">Overall Completion</p>
+            </div>
+
+            {/* On-Time vs Delayed */}
+            <div>
+              <p className="font-medium mb-4 text-center">On-Time vs Delayed</p>
+              <ResponsiveContainer width="100%" height={150}>
+                <RechartsPC>
+                  <Pie
+                    data={pieChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={60}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `${Math.round(value)}%`} />
+                </RechartsPC>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-4 mt-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-green-500 rounded" />
+                  <span className="text-xs">On-Time</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-red-500 rounded" />
+                  <span className="text-xs">Delayed</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Inspection Pass vs Fail */}
+            <div>
+              <p className="font-medium mb-4 text-center">Inspection Rate</p>
+              <ResponsiveContainer width="100%" height={150}>
+                <BarChart data={barChartData}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => `${Math.round(value)}%`} />
+                  <Bar dataKey="value" fill="#a855f7" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
